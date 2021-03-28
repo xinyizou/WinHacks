@@ -8,10 +8,11 @@
     <script src="https://d3js.org/d3-color.v2.min.js"></script>
     <script src="https://d3js.org/d3-interpolate.v2.min.js"></script>
     <script src="https://d3js.org/d3-array.v2.min.js"></script>
-    <link rel="stylesheet" href="dist/sortable-tables.min.css">
-    <script src="dist/sortable-tables.min.js"></script>
+    <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+    <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.0-beta.1/mapbox-gl.js"></script>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.0-beta.1/mapbox-gl.css">
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js"></script>
     <style>
         body { margin: 0; padding: 0; }
@@ -19,6 +20,17 @@
         .mapboxgl-popup {
             max-width: 600px;
             font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+        }
+        #control-panel {
+            position: absolute;
+            background: #fff;
+            top: 0;
+            left: 0;
+            margin: 12px;
+            padding: 20px;
+            font-size: 12px;
+            line-height: 1.5;
+            z-index: 1;
         }
         #vis { position: absolute; top: 50%; bottom: 0; width: 100%; height: 100%}
     </style>
@@ -67,7 +79,26 @@
         background: #3074a4;
     }
 </style>
-
+<div id="control-panel">
+    <div>
+        <label>Number of Employees</label>
+        <input id="employee" type="range" min="1" max="400" step="1" value="200"></input>
+        <span id="employee-value"></span>
+        <p id="employee-number"></p>
+    </div>
+    <div>
+        <label>Revenue</label>
+        <input id="revenue" type="range" min="0" max="100000000" step="1000" value="1000000"></input>
+        <span id="revenue-value"></span>
+        <p id="revenue-number"></p>
+    </div>
+    <div>
+        <label>Average Review</label>
+        <input id="rating" type="range" min="0" max="5" step="0.1" value="5"></input>
+        <span id="rating-value"></span>
+        <p id="rating-number"></p>
+    </div>
+</div>
 <nav id="menu"></nav>
 <div id="map"></div>
 <div style="width: 100%; height: 50%" id="vis">
@@ -81,41 +112,47 @@
         <div style="width: 50%; height: 100px; float: left;" id="business_type_number"></div>
         <div style="margin-left: 50%; height: 100px;" id="business_status"></div>
     </div>
-</div>
-<div style="width: 100%;">
-    <table class="sortable-table" style="width:100%">
-        <thead>
-        <tr>
-            <th>Business Name</th>
-            <th>Business Website</th>
-            <th>Business Address</th>
-            <th>Business Type</th>
-            <th>Phone number</th>
-            <th>Owner</th>
-            <th>Employee Number</th>
-            <th>Annual Revenue</th>
-            <th>Business Description</th>
-        </tr>
-        </thead>
+    <div style="height: 100%" id="CSVTable"></div>
+<!--    <div id="test">-->
+<!--        <table id="table" style="width:100%">-->
+<!--            tr>&ndash;&gt;-->
+<!--                        <th>Business Name</th>-->
+<!--                        <th>Business Website</th>-->
+<!--                        <th>Business Address</th>-->
+<!--                        <th>Business Phone</th>-->
+<!--                        <th>Owner</th>-->
+<!--                        <th>Employees</th>-->
+<!--                        <th>Annual Revenue</th>-->
+<!--                        <th>Business Description</th>-->
+<!--                        <th>Sector</th>-->
+<!--                        <th>Industry</th>-->
+<!--                        <th>Founded</th>-->
+<!--                        <th>Status</th>-->
+<!--                        <th>Rating</th>-->
+<!--                        <th>Number of ratings</th>-->
 
-        <tr>
-            <td>Jill</td>
-            <td>Smith</td>
-            <td>50</td>
-        </tr>
-        <tr>
-            <td>Eve</td>
-            <td>Jackson</td>
-            <td>94</td>
-        </tr>
-        <tr>
-            <td>Eve</td>
-            <td>Jackson</td>
-            <td>94</td>
-        </tr>
-    </table>
-</div>
+<!--                    </tr>-->
+<!--        </table>-->
+<!--    </div>-->
 
+</div>
+<script type="text/javascript"charset="utf-8">
+    d3.text("https://raw.githubusercontent.com/xinyizou/WinHacks/main/maps2%20copy.csv", function(data) {
+        var parsedCSV = d3.csvParse(data);
+
+        var container = d3.select("CSVTable")
+            .append("table")
+
+            .selectAll("tr")
+            .data(parsedCSV).enter()
+            .append("tr")
+
+            .selectAll("td")
+            .data(function(d) { return d; }).enter()
+            .append("td")
+            .text(function(d) { return d; });
+    });
+</script>
 <script>
     // TO MAKE THE MAP APPEAR YOU MUST
     // ADD YOUR ACCESS TOKEN FROM
@@ -139,7 +176,7 @@
 
     function renderIndustry(data) {
         var industries1 = []
-        var byIndustry = d3.group(data.features, d => d.properties.industry);
+        var byIndustry = d3.group(data, d => d.properties.industry);
         for (let key of byIndustry.keys()) {
             var entry = {name: key, value: byIndustry.get(key).length}
             industries1.push(entry)
@@ -169,7 +206,7 @@
             .attr('fill', function(d){ return(color(d.data.name)) })
             .attr("stroke", "black")
             .style("stroke-width", "2px")
-            .style("opacity", 0.7)
+            .style("opacity", 1)
 
         svg
             .selectAll('whatever')
@@ -185,7 +222,7 @@
 
     function renderSector(data) {
         var industries2 = []
-        var byIndustry = d3.group(data.features, d => d.properties.sector);
+        var byIndustry = d3.group(data, d => d.properties.sector);
         for (let key of byIndustry.keys()) {
             var entry = {name: key, value: byIndustry.get(key).length}
             industries2.push(entry)
@@ -215,7 +252,7 @@
             .attr('fill', function(d){ return(color(d.data.name)) })
             .attr("stroke", "black")
             .style("stroke-width", "2px")
-            .style("opacity", 0.7)
+            .style("opacity", 1)
 
         svg2
             .selectAll('whatever')
@@ -231,7 +268,7 @@
 
     function renderBusinessStatus(data) {
         var industries3 = []
-        var byIndustry = d3.group(data.features, d => d.properties.business_type);
+        var byIndustry = d3.group(data, d => d.properties.business_type);
         for (let key of byIndustry.keys()) {
             var entry = {name: key, value: byIndustry.get(key).length}
             industries3.push(entry)
@@ -261,7 +298,7 @@
             .attr('fill', function(d){ return(color(d.data.name)) })
             .attr("stroke", "black")
             .style("stroke-width", "2px")
-            .style("opacity", 0.7)
+            .style("opacity", 1)
 
         svg3
             .selectAll('whatever')
@@ -275,50 +312,53 @@
 
     }
 
-    function renderOperations(data) {
-        var industries4 = []
-        var byIndustry = d3.group(data.features, d => d.properties.business_status);
-        for (let key of byIndustry.keys()) {
-            var entry = {name: key, value: byIndustry.get(key).length}
+    function renderScatter(data) {
+        var cust_margin = {top: 10, right: 30, bottom: 30, left: 10},
+            cust_width = width - cust_margin.left - cust_margin.right,
+            cust_height = height - cust_margin.top - cust_margin.bottom;
+
+        var industries4 = [];
+        for (i = 0; i < data.length; i++) {
+            var entry = [parseInt(data[i].properties.revenue) || 0, parseInt(data[i].properties.employee || 0)]
             industries4.push(entry)
         }
+        console.log("industries");
+        console.log(industries4);
 
-        // set the color scale
-        var color = d3.scaleOrdinal()
-            .domain(industries4.map(d => d.name))
-            .range(d3.quantize(t => d3.interpolateSpectral(t * 0.8 + 0.1), industries4.length).reverse())
-        // Compute the position of each group on the pie:
-        var pie = d3.pie()
-            .value(function(d) {return d.value; })
-
-        var data_ready = pie(industries4)
-
-        var arcGenerator = d3.arc()
-            .innerRadius(0)
-            .outerRadius(radius)
-
-        // Build the pie chart: Basically, each part of the pie is a path that we build using the arc function.
+        // Add dots
         svg4
-            .selectAll('whatever')
-            .data(data_ready)
+            .selectAll("circle")
+            .data(industries4)
             .enter()
-            .append('path')
-            .attr('d', arcGenerator)
-            .attr('fill', function(d){ return(color(d.data.name)) })
-            .attr("stroke", "black")
-            .style("stroke-width", "2px")
-            .style("opacity", 0.7)
+            .append("circle")
+            .attr("cx", function (d) { return d[0]/4180000.00 * cust_height; } )
+            .attr("cy", function (d) { return d[1]/100 * cust_width; } )
+            .attr("r", 3)
+            .attr("fill", "#00aa88");
 
-        svg4
-            .selectAll('whatever')
-            .data(data_ready)
-            .enter()
-            .append('text')
-            .text(function(d){ return d.data.name + ": " + d.data.value})
-            .attr("transform", function(d) { return "translate(" + arcGenerator.centroid(d) + ")";  })
-            .style("text-anchor", "middle")
-            .style("font-size", 10)
     }
+
+    // function renderTable(data) {
+    //     for (i=0; i<data.length; i++) {
+    //         console.log(data[i].properties)
+    //         $("#table table") .append('<tr><td>'+data[i].properties.name+'</td>' +
+    //             '<td>'+data[i].properties.website_url+'</td>' +
+    //             '<td>'+data[i].properties.formatted_address+'</td>' +
+    //             '<td>'+data[i].properties.phone+'</td>' +
+    //             '<td>'+data[i].properties.owner+'</td>' +
+    //             '<td>'+data[i].properties.employee+'</td>' +
+    //             '<td>'+data[i].properties.revenue+'</td>' +
+    //             '<td>'+data[i].properties.desc+'</td>' +
+    //             '<td>'+data[i].properties.sector+'</td>' +
+    //             '<td>'+data[i].properties.industry+'</td>' +
+    //             '<td>'+data[i].properties.started+'</td>' +
+    //             '<td>'+data[i].properties.business_status+'</td>' +
+    //             '<td>'+data[i].properties.rating+'</td>' +
+    //             '<td>'+data[i].properties.user_ratings_total+'</td>' +
+    //             '</tr>')
+    //
+    //     }
+    // }
 
     // append the svg object to the div called 'my_dataviz'
     var svg = d3.select("#industry_number")
@@ -346,16 +386,45 @@
     // append the svg object to the div called 'my_dataviz'
     var svg4 = d3.select("#business_status")
         .append("svg")
-        .attr("width", width)
-        .attr("height", height)
-        .append("g")
-        .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+        .attr("width", 600)
+        .attr("height", 300)
 
     var raw = d3.json('https://raw.githubusercontent.com/xinyizou/WinHacks/main/final_results_geo%20copy.json', function(data) {
-        renderBusinessStatus(data)
-        renderOperations(data)
-        renderIndustry(data)
-        renderSector(data)
+        renderBusinessStatus(data.features)
+        renderScatter(data.features)
+        renderIndustry(data.features)
+        renderSector(data.features)
+        // renderTable(data.features)
+
+        var OPTIONS = ['employee', 'revenue', 'rating'];
+        OPTIONS.forEach(key => {
+            document.getElementById(key).onchange = (evt) => {
+                var value = Number(evt.target.value);
+                document.getElementById(key + '-value').innerHTML = value;
+
+
+                delete_them = [];
+                for (i = 0; i < data.features.length; i++) {
+                    if (data.features[i].properties[key] < value) {
+                        delete_them.push(data.features[i])
+                    }
+                }
+
+                console.log(delete_them)
+
+                console.log(delete_them)
+                renderBusinessStatus(delete_them)
+                renderScatter(delete_them)
+                renderIndustry(delete_them)
+                renderSector(delete_them)
+                // renderTable(delete_them)
+
+                var geoj = '{ "type": "FeatureCollection",\n' +
+                    '    "features": ' + JSON.stringify(delete_them) + '}'
+                map.getSource('business_data').setData(JSON.parse(geoj))
+            };
+        });
+
         // Wait until the map has finished loading.
         map.on('load', function () {
             // Add source and layer for museums
