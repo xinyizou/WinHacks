@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Show and hide layers</title>
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <script src="https://d3js.org/d3-color.v2.min.js"></script>
+    <script src="https://d3js.org/d3-interpolate.v2.min.js"></script>
+    <script src="https://d3js.org/d3-array.v2.min.js"></script>
+    <link rel="stylesheet" href="dist/sortable-tables.min.css">
+    <script src="dist/sortable-tables.min.js"></script>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 50%}
+        .mapboxgl-popup {
+            max-width: 600px;
+            font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+        }
+        #vis { position: absolute; top: 50%; bottom: 0; width: 100%; height: 100%}
+    </style>
+</head>
+<body>
+<style>
+    #menu {
+        background: #fff;
+        position: absolute;
+        z-index: 1;
+        top: 10px;
+        right: 10px;
+        border-radius: 3px;
+        width: 120px;
+        border: 1px solid rgba(0, 0, 0, 0.4);
+        font-family: 'Open Sans', sans-serif;
+    }
+
+    #menu a {
+        font-size: 13px;
+        color: #404040;
+        display: block;
+        margin: 0;
+        padding: 0;
+        padding: 10px;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+        text-align: center;
+    }
+
+    #menu a:last-child {
+        border: none;
+    }
+
+    #menu a:hover {
+        background-color: #f8f8f8;
+        color: #404040;
+    }
+
+    #menu a.active {
+        background-color: #3887be;
+        color: #ffffff;
+    }
+
+    #menu a.active:hover {
+        background: #3074a4;
+    }
+</style>
+
+<nav id="menu"></nav>
+<div id="map"></div>
+<div style="width: 100%; height: 50%" id="vis">
+    <div style="height: 100%">
+        <!-- Create a div where the graph will take place -->
+        <div style="width: 50%; height: 100px; float: left;" id="industry_number"></div>
+        <div style="margin-left: 50%; height: 100px;" id="sector_number"></div>
+    </div>
+    <div style="height: 100%">
+        <!-- Create a div where the graph will take place -->
+        <div style="width: 50%; height: 100px; float: left;" id="business_type_number"></div>
+        <div style="margin-left: 50%; height: 100px;" id="business_status"></div>
+    </div>
+</div>
+<div style="width: 100%;">
+    <table class="sortable-table" style="width:100%">
+        <thead>
+        <tr>
+            <th>Business Name</th>
+            <th>Business Website</th>
+            <th>Business Address</th>
+            <th>Business Type</th>
+            <th>Phone number</th>
+            <th>Owner</th>
+            <th>Employee Number</th>
+            <th>Annual Revenue</th>
+            <th>Business Description</th>
+        </tr>
+        </thead>
+
+        <tr>
+            <td>Jill</td>
+            <td>Smith</td>
+            <td>50</td>
+        </tr>
+        <tr>
+            <td>Eve</td>
+            <td>Jackson</td>
+            <td>94</td>
+        </tr>
+        <tr>
+            <td>Eve</td>
+            <td>Jackson</td>
+            <td>94</td>
+        </tr>
+    </table>
+</div>
+
+<script>
+    // TO MAKE THE MAP APPEAR YOU MUST
+    // ADD YOUR ACCESS TOKEN FROM
+    // https://account.mapbox.com
+    mapboxgl.accessToken = 'pk.eyJ1IjoidWJlcmRhdGEiLCJhIjoiY2pudzRtaWloMDAzcTN2bzN1aXdxZHB5bSJ9.2bkj3IiRC8wj3jLThvDGdA';
+    var map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v11',
+        zoom: 10,
+        center: [-82.558, 42.167]
+    });
+
+
+    // set the dimensions and margins of the graph
+    var width = 450
+    height = 450
+    margin = 40
+
+    // The radius of the pieplot is half the width or half the height (smallest one). I subtract a bit of margin.
+    var radius = Math.min(width, height) / 2 - margin
+
+    function renderIndustry(data) {
+        var industries1 = []
+        var byIndustry = d3.group(data.features, d => d.properties.industry);
+        for (let key of byIndustry.keys()) {
+            var entry = {name: key, value: byIndustry.get(key).length}
+            industries1.push(entry)
+        }
+
+        // set the color scale
+        var color = d3.scaleOrdinal()
+            .domain(industries1.map(d => d.name))
+            .range(d3.quantize(t => d3.interpolateSpectral(t * 0.8 + 0.1), industries1.length).reverse())
+        // Compute the position of each group on the pie:
+        var pie = d3.pie()
+            .value(function(d) {return d.value; })
+
+        var data_ready = pie(industries1)
+
+        var arcGenerator = d3.arc()
+            .innerRadius(0)
+            .outerRadius(radius)
+
+        // Build the pie chart: Basically, each part of the pie is a path that we build using the arc function.
+        svg
+            .selectAll('whatever')
+            .data(data_ready)
+            .enter()
+            .append('path')
+            .attr('d', arcGenerator)
+            .attr('fill', function(d){ return(color(d.data.name)) })
+            .attr("stroke", "black")
+            .style("stroke-width", "2px")
+            .style("opacity", 0.7)
+
+        svg
+            .selectAll('whatever')
+            .data(data_ready)
+            .enter()
+            .append('text')
+            .text(function(d){ return d.data.name + ": " + d.data.value})
+            .attr("transform", function(d) { return "translate(" + arcGenerator.centroid(d) + ")";  })
+            .style("text-anchor", "middle")
+            .style("font-size", 10)
+
+    }
+
+    function renderSector(data) {
+        var industries2 = []
+        var byIndustry = d3.group(data.features, d => d.properties.sector);
+        for (let key of byIndustry.keys()) {
+            var entry = {name: key, value: byIndustry.get(key).length}
+            industries2.push(entry)
+        }
+
+        // set the color scale
+        var color = d3.scaleOrdinal()
+            .domain(industries2.map(d => d.name))
+            .range(d3.quantize(t => d3.interpolateSpectral(t * 0.8 + 0.1), industries2.length).reverse())
+        // Compute the position of each group on the pie:
+        var pie = d3.pie()
+            .value(function(d) {return d.value; })
+
+        var data_ready = pie(industries2)
+
+        var arcGenerator = d3.arc()
+            .innerRadius(0)
+            .outerRadius(radius)
+
+        // Build the pie chart: Basically, each part of the pie is a path that we build using the arc function.
+        svg2
+            .selectAll('whatever')
+            .data(data_ready)
+            .enter()
+            .append('path')
+            .attr('d', arcGenerator)
+            .attr('fill', function(d){ return(color(d.data.name)) })
+            .attr("stroke", "black")
+            .style("stroke-width", "2px")
+            .style("opacity", 0.7)
+
+        svg2
+            .selectAll('whatever')
+            .data(data_ready)
+            .enter()
+            .append('text')
+            .text(function(d){ return d.data.name + ": " + d.data.value})
+            .attr("transform", function(d) { return "translate(" + arcGenerator.centroid(d) + ")";  })
+            .style("text-anchor", "middle")
+            .style("font-size", 10)
+
+    }
+
+    function renderBusinessStatus(data) {
+        var industries3 = []
+        var byIndustry = d3.group(data.features, d => d.properties.business_type);
+        for (let key of byIndustry.keys()) {
+            var entry = {name: key, value: byIndustry.get(key).length}
+            industries3.push(entry)
+        }
+
+        // set the color scale
+        var color = d3.scaleOrdinal()
+            .domain(industries3.map(d => d.name))
+            .range(d3.quantize(t => d3.interpolateSpectral(t * 0.8 + 0.1), industries3.length).reverse())
+        // Compute the position of each group on the pie:
+        var pie = d3.pie()
+            .value(function(d) {return d.value; })
+
+        var data_ready = pie(industries3)
+
+        var arcGenerator = d3.arc()
+            .innerRadius(0)
+            .outerRadius(radius)
+
+        // Build the pie chart: Basically, each part of the pie is a path that we build using the arc function.
+        svg3
+            .selectAll('whatever')
+            .data(data_ready)
+            .enter()
+            .append('path')
+            .attr('d', arcGenerator)
+            .attr('fill', function(d){ return(color(d.data.name)) })
+            .attr("stroke", "black")
+            .style("stroke-width", "2px")
+            .style("opacity", 0.7)
+
+        svg3
+            .selectAll('whatever')
+            .data(data_ready)
+            .enter()
+            .append('text')
+            .text(function(d){ return d.data.name + ": " + d.data.value})
+            .attr("transform", function(d) { return "translate(" + arcGenerator.centroid(d) + ")";  })
+            .style("text-anchor", "middle")
+            .style("font-size", 10)
+
+    }
+
+    function renderOperations(data) {
+        var industries4 = []
+        var byIndustry = d3.group(data.features, d => d.properties.business_status);
+        for (let key of byIndustry.keys()) {
+            var entry = {name: key, value: byIndustry.get(key).length}
+            industries4.push(entry)
+        }
+
+        // set the color scale
+        var color = d3.scaleOrdinal()
+            .domain(industries4.map(d => d.name))
+            .range(d3.quantize(t => d3.interpolateSpectral(t * 0.8 + 0.1), industries4.length).reverse())
+        // Compute the position of each group on the pie:
+        var pie = d3.pie()
+            .value(function(d) {return d.value; })
+
+        var data_ready = pie(industries4)
+
+        var arcGenerator = d3.arc()
+            .innerRadius(0)
+            .outerRadius(radius)
+
+        // Build the pie chart: Basically, each part of the pie is a path that we build using the arc function.
+        svg4
+            .selectAll('whatever')
+            .data(data_ready)
+            .enter()
+            .append('path')
+            .attr('d', arcGenerator)
+            .attr('fill', function(d){ return(color(d.data.name)) })
+            .attr("stroke", "black")
+            .style("stroke-width", "2px")
+            .style("opacity", 0.7)
+
+        svg4
+            .selectAll('whatever')
+            .data(data_ready)
+            .enter()
+            .append('text')
+            .text(function(d){ return d.data.name + ": " + d.data.value})
+            .attr("transform", function(d) { return "translate(" + arcGenerator.centroid(d) + ")";  })
+            .style("text-anchor", "middle")
+            .style("font-size", 10)
+    }
+
+    // append the svg object to the div called 'my_dataviz'
+    var svg = d3.select("#industry_number")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .append("g")
+        .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+    var svg2 = d3.select("#sector_number")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .append("g")
+        .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+    var svg3 = d3.select("#business_type_number")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .append("g")
+        .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+
+    // append the svg object to the div called 'my_dataviz'
+    var svg4 = d3.select("#business_status")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .append("g")
+        .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+    var raw = d3.json('https://raw.githubusercontent.com/xinyizou/WinHacks/main/final_results_geo%20copy.json', function(data) {
+        renderBusinessStatus(data)
+        renderOperations(data)
+        renderIndustry(data)
+        renderSector(data)
+        // Wait until the map has finished loading.
+        map.on('load', function () {
+            // Add source and layer for museums
+
+            map.addSource('business_data', {
+                'type': 'geojson',
+                'data': data
+            });
+            map.addLayer(
+                {
+                    'id': 'employees-heat',
+                    'type': 'heatmap',
+                    'source': 'business_data',
+                    'maxzoom': 15,
+                    'paint': {
+                        // Increase the heatmap weight based on frequency and property magnitude
+                        'heatmap-weight': [
+                            'interpolate',
+                            ['linear'],
+                            ['get', 'employee'],
+                            0,
+                            0,
+                            100,
+                            1
+                        ],
+                        // Increase the heatmap color weight weight by zoom level
+                        // heatmap-intensity is a multiplier on top of heatmap-weight
+                        'heatmap-intensity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            0,
+                            1,
+                            9,
+                            3
+                        ],
+                        // Color ramp for heatmap.  Domain is 0 (low) to 1 (high).
+                        // Begin color ramp at 0-stop with a 0-transparancy color
+                        // to create a blur-like effect.
+                        'heatmap-color': [
+                            'interpolate',
+                            ['linear'],
+                            ['heatmap-density'],
+                            0,
+                            'rgba(33,102,172,0)',
+                            0.2,
+                            'rgb(103,169,207)',
+                            0.4,
+                            'rgb(209,229,240)',
+                            0.6,
+                            'rgb(253,219,199)',
+                            0.8,
+                            'rgb(239,138,98)',
+                            1,
+                            'rgb(178,24,43)'
+                        ],
+                        // Adjust the heatmap radius by zoom level
+                        'heatmap-radius': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            0,
+                            2,
+                            9,
+                            30
+                        ],
+                        // Transition from heatmap to circle layer by zoom level
+                        'heatmap-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10,
+                            1,
+                            15,
+                            0
+                        ]
+                    }
+                },
+                'waterway-label'
+            );
+
+            map.addLayer(
+                {
+                    'id': 'revenue-heat',
+                    'type': 'heatmap',
+                    'source': 'business_data',
+                    'maxzoom': 15,
+                    'paint': {
+                        // Increase the heatmap weight based on frequency and property magnitude
+                        'heatmap-weight': [
+                            'interpolate',
+                            ['linear'],
+                            ['get', 'revenue'],
+                            0,
+                            0,
+                            3000000,
+                            1
+                        ],
+                        // Increase the heatmap color weight weight by zoom level
+                        // heatmap-intensity is a multiplier on top of heatmap-weight
+                        'heatmap-intensity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            0,
+                            1,
+                            9,
+                            3
+                        ],
+                        // Color ramp for heatmap.  Domain is 0 (low) to 1 (high).
+                        // Begin color ramp at 0-stop with a 0-transparancy color
+                        // to create a blur-like effect.
+                        'heatmap-color': [
+                            'interpolate',
+                            ['linear'],
+                            ['heatmap-density'],
+                            0,
+                            'rgba(33,102,172,0)',
+                            0.2,
+                            'rgb(66,207,105)',
+                            0.4,
+                            'rgb(186,240,195)',
+                            0.6,
+                            'rgb(234,192,253)',
+                            0.8,
+                            'rgb(214,118,239)',
+                            1,
+                            'rgb(132,9,178)'
+                        ],
+                        // Adjust the heatmap radius by zoom level
+                        'heatmap-radius': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            0,
+                            2,
+                            9,
+                            30
+                        ],
+                        // Transition from heatmap to circle layer by zoom level
+                        'heatmap-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10,
+                            1,
+                            15,
+                            0
+                        ]
+                    }
+                },
+                'waterway-label'
+            );
+
+            map.addLayer(
+                {
+                    'id': 'points',
+                    'type': 'circle',
+                    'source': 'business_data',
+                    'minzoom': 7,
+                    'paint': {
+                        // Size circle radius by earthquake magnitude and zoom level
+                        'circle-radius': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            7,
+                            ['interpolate', ['linear'], ['get', 'mag'], 1, 1, 6, 4],
+                            16,
+                            ['interpolate', ['linear'], ['get', 'mag'], 1, 5, 6, 50]
+                        ],
+                        // Color circle by earthquake magnitude
+                        'circle-color': [
+                            'interpolate',
+                            ['linear'],
+                            ['get', 'mag'],
+                            1,
+                            'rgba(33,102,172,0)',
+                            2,
+                            'rgb(103,169,207)',
+                            3,
+                            'rgb(209,229,240)',
+                            4,
+                            'rgb(253,219,199)',
+                            5,
+                            'rgb(239,138,98)',
+                            6,
+                            'rgb(178,24,43)'
+                        ],
+                        'circle-stroke-color': 'white',
+                        'circle-stroke-width': 1,
+                        // Transition from heatmap to circle layer by zoom level
+                        'circle-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            7,
+                            0,
+                            8,
+                            1
+                        ]
+                    }
+                },
+                'waterway-label'
+            );
+        });
+    })
+
+    map.on('click', 'points', function (e) {
+        var coordinates = e.features[0].geometry.coordinates.slice();
+        var name = e.features[0].properties.name;
+        var desc = e.features[0].properties.desc;
+        var link = e.features[0].properties.website_url;
+        var address = e.features[0].properties.formatted_address;
+        var owner = e.features[0].properties.principal;
+        var phone = e.features[0].properties.phone;
+
+
+        // Ensure that if the map is zoomed out such that multiple
+        // copies of the feature are visible, the popup appears
+        // over the copy being pointed to.
+        while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+            coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+        }
+
+        new mapboxgl.Popup()
+            .setLngLat(coordinates)
+            .setHTML("<strong><a href=\"" + link + "\" target=\"_blank\">" + name + "</a></strong><p>" + desc + "</p><p>" + address + "</p><p>" + owner + "</p><p>" + phone + "</p>")
+            .addTo(map);
+    });
+
+    // After the last frame rendered before the map enters an "idle" state.
+    map.on('idle', function () {
+        // If these two layers have been added to the style,
+        // add the toggle buttons.
+        if (map.getLayer('revenue-heat') && map.getLayer('points') && map.getLayer('employees-heat')) {
+            // Enumerate ids of the layers.
+            var toggleableLayerIds = ['revenue-heat', 'points', 'employees-heat'];
+            // Set up the corresponding toggle button for each layer.
+            for (var i = 0; i < toggleableLayerIds.length; i++) {
+                var id = toggleableLayerIds[i];
+                if (!document.getElementById(id)) {
+                    // Create a link.
+                    var link = document.createElement('a');
+                    link.id = id;
+                    link.href = '#';
+                    link.textContent = id;
+                    link.className = 'active';
+                    // Show or hide layer when the toggle is clicked.
+                    link.onclick = function (e) {
+                        var clickedLayer = this.textContent;
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        var visibility = map.getLayoutProperty(
+                            clickedLayer,
+                            'visibility'
+                        );
+
+                        // Toggle layer visibility by changing the layout object's visibility property.
+                        if (visibility === 'visible') {
+                            map.setLayoutProperty(
+                                clickedLayer,
+                                'visibility',
+                                'none'
+                            );
+                            this.className = '';
+                        } else {
+                            this.className = 'active';
+                            map.setLayoutProperty(
+                                clickedLayer,
+                                'visibility',
+                                'visible'
+                            );
+                        }
+                    };
+
+                    var layers = document.getElementById('menu');
+                    layers.appendChild(link);
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
